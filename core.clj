@@ -1,35 +1,40 @@
 (ns my-sketch.core
-  (:require [quil.core :as q]))
-(defn tree [len]
-  (q/line [0 0] [0 len])
-  (if (>= len 1)
-    (q/with-translation [0 len]
-      (q/with-rotation [(q/radians 75)] (tree (/ len 1.618)))
-      (q/with-rotation [(q/radians -75)] (tree (/ len 1.618))))))
-(defn snowflake [i ang]
-  (if (zero? i)
-    (do (q/line [0 0] [9 0])
-        (q/translate [9 0]))
-    (do
-      (snowflake (dec i) ang)
-      
-      (q/rotate (q/radians (- ang)))
-      (snowflake (dec i) ang)
-      
-      (q/rotate (q/radians (* 2 ang)))
-      (snowflake (dec i) ang)
-      (q/rotate (q/radians (- ang)))
-      (snowflake (dec i) ang))))
+  (:require [quil.core :as q]
+            [quil.middleware :as m]))
+(def size [500 500])
+
+(def states (let [[w h] size 
+        ;;; keys are points and vals are rgb colors
+                  points (into [] (repeatedly 7 (fn [] (mapv (partial rand-int) [w h]))))
+                  colors (into [] (repeatedly 7 (fn [] (mapv (partial rand-int) [255 255 255]))))]
+              (zipmap points colors)))
 (defn setup []
-  (q/background 55))
+  (q/background 0))
+(defn rand-point []
+  (mapv (partial rand-int) [(q/width) (q/height)]))
+(defn closest-point [[x y] statesp]
+  (->>
+   statesp
+   (map (partial apply q/dist x y))
+   (zipmap statesp)
+   (sort-by val)
+   ffirst))
+
 (defn draw []
-  (q/background 56)
-  (q/translate 0 (/ (q/height) 2))
-  (snowflake 4 60))
+  (q/stroke-weight 5)
+  (doseq [[p c] states]
+    (apply q/stroke c)
+    (apply q/point p))
+  (q/stroke-weight 1)
+  (doseq [rp (repeatedly 100 rand-point)]
+    (let [closestp (closest-point rp (keys states))
+          color (states closestp)]
+      (apply q/stroke color)
+      (apply q/point rp))))
 
 ; run sketch
 (q/defsketch trigonometry
-  :size [500 500]
-  :features [:resizable]
+  :size size
   :draw draw
-  :setup setup)
+  :setup setup
+  :mouse-pressed #(q/background 0))
